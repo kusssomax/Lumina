@@ -48,3 +48,22 @@ export interface IVoiceSession extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
+
+export interface CreateBook {
+    clerkId: string;
+    title: string;
+    author: string;
+    persona?: string;
+    fileURL: string;
+    fileBlobKey: string;
+    coverURL?: string;
+    coverBlobKey?: string;
+    fileSize: number;
+}
+
+export interface TextSegment {
+    text: string;
+    segmentIndex: number;
+    pageNumber?: number;
+    wordCount: number;
+}

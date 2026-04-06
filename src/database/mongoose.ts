@@ -15,7 +15,7 @@ declare global {
 
 let cached = global.monggoseCache || ( global.monggoseCache = { conn: null, promise: null } );
 
-export const conectToMongoDB = async () => {
+export const connectToMongoDB = async () => {
     if (cached.conn) return cached.conn;
 
     if (!cached.promise) {
