@@ -1,10 +1,9 @@
-"use client"
-
-import { zodResolver } from "@hookform/resolvers/zod"
-import { ImageUp, Upload } from "lucide-react"
-import { useForm } from "react-hook-form"
-
-import { Button } from "@/components/ui/button"
+"use client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ImageUp, Upload } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -13,42 +12,145 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
-import { FileDropzoneField } from "./FileDropzoneField"
-import { LoadingOverlay } from "./LoadingOverlay"
-import { MAX_PDF_MB } from "./upload-form.constants"
-import {
-  bookUploadSchema,
-  type BookUploadValues,
-} from "./upload-form.schema"
-import { VoiceField } from "./VoiceField"
-
-export type { BookUploadValues }
+import { FileDropzoneField } from "./FileDropzoneField";
+import { LoadingOverlay } from "./LoadingOverlay";
+import { MAX_PDF_MB } from "./upload-form.constants";
+import { bookUploadSchema, type BookUploadValues } from "./upload-form.schema";
+import { VoiceField } from "./VoiceField";
+import { useAuth } from "@clerk/nextjs";
+import { useState } from "react";
+import { isBookExists, createBook, saveBookSegments } from "@/lib/actions/createBook";
+import { useRouter } from "next/navigation";
+export type { BookUploadValues };
+import { parsePDFFile } from "@/lib/utils";
+import { upload } from "@vercel/blob/client";
 
 type UploadFormProps = {
-  onSubmit?: (values: BookUploadValues) => void | Promise<void>
-  className?: string
-}
+  onSubmit?: (values: BookUploadValues) => void | Promise<void>;
+  className?: string;
+};
 
 const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { userId } = useAuth();
+  const router = useRouter();
+
   const form = useForm({
     resolver: zodResolver(bookUploadSchema),
     defaultValues: {
       title: "",
       author: "",
-      voice: "dave",
+      persona: "dave",
+      pdfFile: undefined,
+      coverImage: undefined,
     },
-  })
+  });
 
   async function onSubmit(values: BookUploadValues) {
-    if (onSubmitProp) {
-      await onSubmitProp(values)
-      return
+    if (!userId) {
+      return toast.error("Please sign in / sign up to upload a book", {
+        position: "top-right",
+      });
     }
-    await new Promise((r) => setTimeout(r, 1200))
+
+    // if (onSubmitProp) {
+    //   await onSubmitProp(values)
+    //   return
+    // }
+
+    try {
+      setIsSubmitting(true);
+      const isBookExistsResponse = await isBookExists(values.title);
+
+      if (isBookExistsResponse.exists && isBookExistsResponse.book) {
+        toast.error("Book already exists", { position: "top-right" });
+        form.reset();
+        router.push(`/books/${isBookExistsResponse.book.slug}`);
+        return;
+      }
+
+      const fileTitle = values.title.replace(/\s+/g, " ").trim().toLowerCase();
+      const pdfFile = values.pdfFile;
+      const parsePdf = await parsePDFFile(pdfFile);
+
+      if (parsePdf.content.length === 0) {
+        toast.error(
+          "Failed to parse PDF file, please try again with a different file",
+          { position: "top-right" },
+        );
+        return;
+      }
+
+      const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        contentType: "application/pdf",
+      });
+
+      let coverUrl: string;
+
+      if (values.coverImage) {
+        const coverFile = values.coverImage;
+        const uploadedCoverBlob = await upload(`${fileTitle}-cover.png`, coverFile, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: coverFile.type,
+        });
+
+        coverUrl = uploadedCoverBlob.url;
+
+      } else {
+        const response = await fetch(parsePdf.cover);
+        const blob = await response.blob();
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, blob, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: "image/png",
+        });
+
+        coverUrl = uploadedCoverBlob.url;
+      }
+
+      const book = await createBook({
+        clerkId: userId,
+        title: values.title,
+        author: values.author,
+        persona: values.persona,
+        fileURL: uploadedPdfBlob.url,
+        fileBlobKey: uploadedPdfBlob.pathname,
+        coverURL: coverUrl,
+        fileSize: pdfFile.size,
+      });
+
+      if (!book.success) throw new Error(book.message);
+
+      if (book.alreadyExists) {
+        toast.error("Book with the same title already exists", { position: "top-right" });
+        form.reset();
+        router.push(`/books/${book.data?.slug}`);
+        return;
+      }
+
+      const segments = await saveBookSegments(book.data._id, userId, parsePdf.content);
+
+      if (!segments.success) {
+        toast.error("Failed to save book segments", { position: "top-right" });
+        throw new Error(segments.message);
+      }
+
+      form.reset();
+      router.push(`/books/${book.data.slug}`);
+
+    } catch (error) {
+      console.error("Failed to upload book", error);
+      toast.error("Failed to upload book", { position: "top-right" });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -91,10 +193,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
                   Book title, required
                 </FormDescription>
                 <FormControl>
-                  <Input
-                    placeholder="ex: Rich Dad Poor Dad"
-                    {...field}
-                  />
+                  <Input placeholder="ex: Rich Dad Poor Dad" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -111,10 +210,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
                   Author name, required
                 </FormDescription>
                 <FormControl>
-                  <Input
-                    placeholder="ex: Robert Kiyosaki"
-                    {...field}
-                  />
+                  <Input placeholder="ex: Robert Kiyosaki" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -133,7 +229,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
         </form>
       </Form>
     </>
-  )
-}
+  );
+};
 
-export default UploadForm
+export default UploadForm;
