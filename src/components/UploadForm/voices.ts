@@ -1,7 +1,7 @@
-import type { VoiceId } from "./upload-form.schema"
+import type { personaId } from "./upload-form.schema"
 
 export type VoiceOption = {
-  id: VoiceId
+  id: personaId
   name: string
   description: string
   group: "male" | "female"

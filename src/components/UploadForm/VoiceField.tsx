@@ -65,7 +65,7 @@ export function VoiceField({ control }: VoiceFieldProps) {
   return (
     <FormField
       control={control}
-      name="voice"
+      name="persona"
       render={({ field }) => (
         <FormItem>
           <Field>
