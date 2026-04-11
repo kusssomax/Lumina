@@ -4,7 +4,6 @@ import { connectToMongoDB } from "@/database/mongoose";
 import { generateSlug, serializeData } from "../utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
-import { success } from "zod";
 
 export const isBookExists = async (title: string) => {
   try {
@@ -26,10 +25,7 @@ export const isBookExists = async (title: string) => {
 
   } catch (error) {
     console.error("Failed to check if book exists", error);
-    return {
-      exists: false,
-      error: error as Error,
-    };
+    throw error;
   }
 };
 
@@ -38,8 +34,8 @@ export const createBook = async (book: CreateBook) => {
     await connectToMongoDB();
 
     const slug = generateSlug(book.title);
-    const existingBook = await Book.findOne({ slug }).lean();
 
+    const existingBook = await Book.findOne({ slug }).lean();
     if (existingBook) {
       return {
         success: true,
@@ -55,6 +51,19 @@ export const createBook = async (book: CreateBook) => {
       data: serializeData(newBook),
     };
   } catch (error) {
+    // Handle duplicate key race condition: another request created the same slug
+    // between our findOne check and Book.create
+    if ((error as { code?: number }).code === 11000) {
+      const existing = await Book.findOne({ slug: generateSlug(book.title) }).lean();
+      if (existing) {
+        return {
+          success: true,
+          data: serializeData(existing),
+          alreadyExists: true,
+        };
+      }
+    }
+
     console.error("Failed to create book", error);
     return {
       success: false,
@@ -68,6 +77,7 @@ export const saveBookSegments = async (
   bookId: string,
   clerkId: string,
   segments: TextSegment[],
+  totalSegments?: number,
 ) => {
   try {
     await connectToMongoDB();
@@ -83,9 +93,11 @@ export const saveBookSegments = async (
       }),
     );
 
-    BookSegment.insertMany(segmentsToInsert);
+    await BookSegment.insertMany(segmentsToInsert);
 
-    await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length });
+    if (totalSegments !== undefined) {
+      await Book.findByIdAndUpdate(bookId, { totalSegments });
+    }
 
     return {
       success: true,

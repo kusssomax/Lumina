@@ -62,6 +62,17 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
     //   return
     // }
 
+    const uploadedBlobUrls: string[] = [];
+
+    const deleteUploadedBlobs = async () => {
+      if (uploadedBlobUrls.length === 0) return;
+      await fetch("/api/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: uploadedBlobUrls }),
+      });
+    };
+
     try {
       setIsSubmitting(true);
       const isBookExistsResponse = await isBookExists(values.title);
@@ -88,9 +99,10 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
 
       const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
         access: "public",
-        handleUploadUrl: "/api/upload",
+        handleUploadUrl: `/api/upload?kind=pdf`,
         contentType: "application/pdf",
       });
+      uploadedBlobUrls.push(uploadedPdfBlob.url);
 
       let coverUrl: string;
 
@@ -98,21 +110,20 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
         const coverFile = values.coverImage;
         const uploadedCoverBlob = await upload(`${fileTitle}-cover.png`, coverFile, {
           access: "public",
-          handleUploadUrl: "/api/upload",
+          handleUploadUrl: `/api/upload?kind=cover-image`,
           contentType: coverFile.type,
         });
-
+        uploadedBlobUrls.push(uploadedCoverBlob.url);
         coverUrl = uploadedCoverBlob.url;
-
       } else {
         const response = await fetch(parsePdf.cover);
         const blob = await response.blob();
         const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, blob, {
           access: "public",
-          handleUploadUrl: "/api/upload",
+          handleUploadUrl: `/api/upload?kind=cover-image`,
           contentType: "image/png",
         });
-
+        uploadedBlobUrls.push(uploadedCoverBlob.url);
         coverUrl = uploadedCoverBlob.url;
       }
 
@@ -127,21 +138,30 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
         fileSize: pdfFile.size,
       });
 
-      if (!book.success) throw new Error(book.message);
+      if (!book.success) {
+        await deleteUploadedBlobs();
+        throw new Error(book.message);
+      }
 
       if (book.alreadyExists) {
         console.log("Book already exists", book.data);
+        await deleteUploadedBlobs();
         toast.error("Book with the same title already exists", { position: "top-right" });
         form.reset();
         router.push(`/books/${book.data?.slug}`);
         return;
       }
 
-      const segments = await saveBookSegments(book.data._id, userId, parsePdf.content);
-
-      if (!segments.success) {
-        toast.error("Failed to save book segments", { position: "top-right" });
-        throw new Error(segments.message);
+      const CHUNK_SIZE = 50;
+      const allSegments = parsePdf.content;
+      for (let i = 0; i < allSegments.length; i += CHUNK_SIZE) {
+        const chunk = allSegments.slice(i, i + CHUNK_SIZE);
+        const segments = await saveBookSegments(book.data._id, userId, chunk, i === 0 ? allSegments.length : undefined);
+        if (!segments.success) {
+          await deleteUploadedBlobs();
+          toast.error("Failed to save book segments", { position: "top-right" });
+          throw new Error(segments.message);
+        }
       }
 
       form.reset();
@@ -149,6 +169,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
       router.push(`/`);
 
     } catch (error) {
+      await deleteUploadedBlobs();
       console.error("Failed to upload book", error);
       toast.error("Failed to upload book", { position: "top-right" });
     } finally {
