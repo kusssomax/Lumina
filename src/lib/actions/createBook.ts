@@ -4,6 +4,7 @@ import { connectToMongoDB } from "@/database/mongoose";
 import { generateSlug, serializeData } from "../utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+import { success } from "zod";
 
 export const isBookExists = async (title: string) => {
   try {
@@ -105,3 +106,25 @@ export const saveBookSegments = async (
     };
   }
 };
+
+export const getListOfBooks = async () => {
+
+  try {
+    await connectToMongoDB();
+    const books = await Book.find().sort({ createdAt: -1 }).lean();
+
+    return {
+      success: true,
+      data: serializeData(books),
+    }
+
+  } catch (error) {
+    console.error("Failed to get list of books", error);
+
+    return {
+      success: false,
+      message: "Failed to get list of books",
+      error: error as Error,
+    }
+  }
+}

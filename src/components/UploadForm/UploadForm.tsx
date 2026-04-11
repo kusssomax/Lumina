@@ -67,6 +67,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
       const isBookExistsResponse = await isBookExists(values.title);
 
       if (isBookExistsResponse.exists && isBookExistsResponse.book) {
+        console.log("Book already exists", isBookExistsResponse.book);
         toast.error("Book already exists", { position: "top-right" });
         form.reset();
         router.push(`/books/${isBookExistsResponse.book.slug}`);
@@ -129,6 +130,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
       if (!book.success) throw new Error(book.message);
 
       if (book.alreadyExists) {
+        console.log("Book already exists", book.data);
         toast.error("Book with the same title already exists", { position: "top-right" });
         form.reset();
         router.push(`/books/${book.data?.slug}`);
@@ -143,7 +145,8 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
       }
 
       form.reset();
-      router.push(`/books/${book.data.slug}`);
+      console.log("Book created", book.data);
+      router.push(`/`);
 
     } catch (error) {
       console.error("Failed to upload book", error);
@@ -222,7 +225,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
           <Button
             type="submit"
             disabled={form.formState.isSubmitting}
-            className="h-12 w-full font-serif text-base"
+            className="h-12 w-full font-serif text-base cursor-pointer"
           >
             Begin Synthesis
           </Button>
