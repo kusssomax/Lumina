@@ -1,7 +1,8 @@
 "use server";
-import { CreateBook, TextSegment } from "../../../types";
+import mongoose from "mongoose";
+import { CreateBook, TextSegment } from "@/types";
 import { connectToMongoDB } from "@/database/mongoose";
-import { generateSlug, serializeData } from "../utils";
+import { escapeRegex, generateSlug, serializeData } from "../utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 
@@ -140,3 +141,55 @@ export const getListOfBooks = async () => {
     }
   }
 }
+
+export const searchBookSegments = async (bookId: string, query: string, limit: number = 5) => {
+  try {
+    await connectToMongoDB();
+
+    const bookObjectId = new mongoose.Types.ObjectId(bookId);
+
+    let segments: Record<string, unknown>[] = [];
+    try {
+      segments = await BookSegment.find(
+        { bookId: bookObjectId, $text: { $search: query } },
+        { score: { $meta: "textScore" }, content: 1, segmentIndex: 1, pageNumber: 1, wordCount: 1 }
+      )
+        .sort({ score: { $meta: "textScore" } })
+        .limit(limit)
+        .lean();
+    } catch {
+      segments = [];
+    }
+
+    if (segments.length === 0) {
+      const keywords = query.split(/\s+/).filter((k) => k.length > 2);
+      const pattern = keywords.map(escapeRegex).join("|");
+
+      segments = await BookSegment.find({
+        bookId: bookObjectId,
+        content: { $regex: pattern, $options: "i" },
+      })
+        .select("_id bookId content segmentIndex pageNumber wordCount")
+        .sort({ segmentIndex: 1 })
+        .limit(limit)
+        .lean();
+    }
+
+    return { success: true, data: serializeData(segments) };
+  } catch (error) {
+    console.error("Failed to search book segments", error);
+    return { success: false, error: (error as Error).message, data: [] };
+  }
+};
+
+export const getBookBySlug = async (slug: string) => {
+  try {
+    await connectToMongoDB();
+    const book = await Book.findOne({ slug }).lean();
+    if (!book) return { success: false, data: null };
+    return { success: true, data: serializeData(book) };
+  } catch (error) {
+    console.error("Failed to get book by slug", error);
+    return { success: false, data: null };
+  }
+};

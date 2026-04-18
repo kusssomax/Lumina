@@ -67,3 +67,21 @@ export interface TextSegment {
     pageNumber?: number;
     wordCount: number;
 }
+
+export interface Messages {
+    role: string;
+    content: string;
+}
+
+export interface IEndSessionResult {
+    success: boolean;
+    error?: string;
+    
+}
+
+export interface IStartSessionResult {
+    success: boolean;
+    sessionId?: string;
+    maxDurationMinutes?: number;
+    error?: string;
+}
