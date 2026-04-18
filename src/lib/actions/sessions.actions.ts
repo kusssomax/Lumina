@@ -36,14 +36,14 @@ export const startNewSession = async (clerkId: string, bookId: string): Promise<
     }
 }
 
-export const endVoiceSession = async (sessionId: string, durationSeconds: number): Promise<IEndSessionResult> => {
+export const endVoiceSession = async (sessionId: string, durationSeconds: number, clerkId: string): Promise<IEndSessionResult> => {
     try {
         await connectToMongoDB();
 
-        const session = await VoiceSession.findByIdAndUpdate(sessionId, {
-            endedAt: new Date(),
-            durationSeconds,
-        });
+        const session = await VoiceSession.findOneAndUpdate(
+            { _id: sessionId, clerkId },
+            { endedAt: new Date(), durationSeconds },
+        );
 
         if (!session) {
             console.error("Session not found:", sessionId);

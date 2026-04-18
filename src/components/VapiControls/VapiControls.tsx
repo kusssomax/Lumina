@@ -7,6 +7,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ChatConversation from "./ChatConversation";
+import { SESSION_LIMIT_SECONDS } from "@/lib/constants";
+import { formatTime } from "@/lib/utils";
 
 
 
@@ -24,6 +26,19 @@ const VapiControls = ({ book }: { book: IBook }) => {
     } = useVapi(book);
 
     const isAiActive = status === 'thinking' || status === 'speaking';
+
+    const statusDotColor =
+        status === 'listening' ? 'bg-green-500' :
+        isAiActive ? 'bg-primary' :
+        'bg-gray-400';
+
+    const statusLabel =
+        status === 'idle' ? 'Ready' :
+        status === 'starting' ? 'Starting…' :
+        status === 'listening' ? 'Listening' :
+        status === 'thinking' ? 'Thinking' :
+        status === 'speaking' ? 'Speaking' :
+        status;
 
     return (
         <>
@@ -47,9 +62,9 @@ const VapiControls = ({ book }: { book: IBook }) => {
                 size="icon"
                 onClick={isActive ? stopSession : startSession}
                 className="relative size-15 rounded-full shadow-md [&_svg:not([class*='size-'])]:size-6"
-                aria-label="Toggle microphone"
+                aria-label={isActive ? "Stop microphone" : "Start microphone"}
               >
-                {isActive ? <Mic /> : <MicOff />}
+                {isActive ? <MicOff /> : <Mic />}
               </Button>
             </div>
           </div>
@@ -63,11 +78,10 @@ const VapiControls = ({ book }: { book: IBook }) => {
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge>
-                <span className="size-2 rounded-full bg-gray-400" />
-                Ready
+                <span className={`size-2 rounded-full ${statusDotColor}`} />
+                Voice: {book.persona ?? "Default"} · {statusLabel}
               </Badge>
-              <Badge>Voice: {book.persona ?? "Default"}</Badge>
-              <Badge>0:00 / 15:00</Badge>
+              <Badge>{formatTime(duration)} / {formatTime(SESSION_LIMIT_SECONDS)}</Badge>
             </div>
           </div>
         </CardContent>

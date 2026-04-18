@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { IBook, Messages } from "@/types";
 import { useAuth } from "@clerk/nextjs";
-import { ASSISTANT_ID, DEFAULT_VOICE, VOICE_SETTINGS } from "../lib/constants";
-import { startNewSession } from "@/lib/actions/sessions.actions";
+import { ASSISTANT_ID, DEFAULT_VOICE, VOICE_SETTINGS, voiceOptions } from "../lib/constants";
+import { startNewSession, endVoiceSession } from "@/lib/actions/sessions.actions";
 import Vapi from "@vapi-ai/web";
 
 export type CallStatus = 'idle' | 'connecting' | 'starting' | 'listening' | 'thinking' | 'speaking';
@@ -97,11 +97,28 @@ export const useVapi = (book: IBook) => {
 
         const handleSpeechStart = () => setStatus("speaking");
         const handleSpeechEnd = () => setStatus("listening");
-        const handleCallStart = () => setStatus("starting");
+        const handleCallStart = () => {
+            setStatus("starting");
+            setDuration(0);
+            if (startTimerRef.current) clearTimeout(startTimerRef.current);
+            startTimerRef.current = setTimeout(() => {
+                if (isStoppingRef.current) return;
+                timerRef.current = setInterval(() => {
+                    setDuration(prev => prev + 1);
+                }, 1000);
+            }, 0);
+        };
         const handleCallEnd = () => {
             setStatus("idle");
             setCurrentMessage("");
             setCurrentUserMessage("");
+            if (startTimerRef.current) { clearTimeout(startTimerRef.current); startTimerRef.current = null; }
+            if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+            isStoppingRef.current = false;
+            if (sessionIdRef.current) {
+                endVoiceSession(sessionIdRef.current, durationRef.current, userId!);
+                sessionIdRef.current = null;
+            }
         };
 
         vapiInstance.on("message", handleMessage);
@@ -116,6 +133,8 @@ export const useVapi = (book: IBook) => {
             vapiInstance.off("speech-end", handleSpeechEnd);
             vapiInstance.off("call-start", handleCallStart);
             vapiInstance.off("call-end", handleCallEnd);
+            if (startTimerRef.current) clearTimeout(startTimerRef.current);
+            if (timerRef.current) clearInterval(timerRef.current);
         };
     }, []);
 
@@ -130,8 +149,12 @@ export const useVapi = (book: IBook) => {
 
         try {
             const result = await startNewSession(userId, book._id);
-            if (!result.success) {
+            if (result.success) {
                 sessionIdRef.current = result.sessionId || null;
+            } else {
+                setLimitError(result.error ?? "Failed to start session.");
+                setStatus('idle');
+                return;
             }
 
             const firstMessage = `Hello, good to meet you! Quick question before we start: have you read "${book.title}" yet? Or are we starting fresh ?`;
@@ -143,15 +166,15 @@ export const useVapi = (book: IBook) => {
                     author: book.author,
                     bookId: book._id,
                 },
-                // voice: {
-                //     provider: "11labs",
-                //     voiceId: getVoice(voice).id,
-                //     model: 'eleven_turbo_v2_5' as const,
-                //     stability: VOICE_SETTINGS.stability,
-                //     similarityBoost: VOICE_SETTINGS.similarityBoost,
-                //     style: VOICE_SETTINGS.style,
-                //     useSpeakerBoost: VOICE_SETTINGS.useSpeakerBoost,
-                // },
+                voice: {
+                    provider: "11labs",
+                    voiceId: (voiceOptions[voice as keyof typeof voiceOptions] ?? voiceOptions[DEFAULT_VOICE as keyof typeof voiceOptions]).id,
+                    model: 'eleven_turbo_v2_5' as const,
+                    stability: VOICE_SETTINGS.stability,
+                    similarityBoost: VOICE_SETTINGS.similarityBoost,
+                    style: VOICE_SETTINGS.style,
+                    useSpeakerBoost: VOICE_SETTINGS.useSpeakerBoost,
+                },
             })
 
         } catch (error) {
@@ -162,6 +185,8 @@ export const useVapi = (book: IBook) => {
     }
     const stopSession = async () => {
         isStoppingRef.current = true;
+        if (startTimerRef.current) { clearTimeout(startTimerRef.current); startTimerRef.current = null; }
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
         await getVapi()?.stop();
     }
     const clearError = async () => {};

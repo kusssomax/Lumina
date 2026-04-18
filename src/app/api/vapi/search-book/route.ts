@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { searchBookSegments } from "@/lib/actions/createBook";
 
+// Vapi sends the shared secret in the "x-vapi-secret" header
 export async function POST(request: Request): Promise<NextResponse> {
+    const secret = request.headers.get("x-vapi-secret");
+    if (!secret || secret !== process.env.VAPI_SECRET) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
         const body = await request.json();
         const toolCall = body?.message?.toolCalls?.[0];

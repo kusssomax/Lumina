@@ -146,6 +146,10 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
   try {
     await connectToMongoDB();
 
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      return { success: false, error: new Error("Invalid bookId") };
+    }
+
     const bookObjectId = new mongoose.Types.ObjectId(bookId);
 
     let segments: Record<string, unknown>[] = [];
