@@ -20,7 +20,7 @@ export default async function ClerkNavAuth() {
         <div className='flex items-center gap-2 hover:opacity-70 transition-opacity'>
         <UserButton />
         {
-            <Link href="/subscription" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+            <Link href="/subscriptions" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
               {user?.firstName && "Subscription"}
             </Link>
         }

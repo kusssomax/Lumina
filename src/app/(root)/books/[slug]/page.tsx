@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Mic, MicOff } from "lucide-react";
-import { getBookBySlug } from "@/lib/actions/createBook";
+import { getBookBySlug } from "@/lib/actions/books.actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
