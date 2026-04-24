@@ -5,6 +5,8 @@ import { connectToMongoDB } from "@/database/mongoose";
 import { escapeRegex, generateSlug, serializeData } from "../utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 
 export const isBookExists = async (title: string) => {
   try {
@@ -33,6 +35,9 @@ export const isBookExists = async (title: string) => {
 export const createBook = async (book: CreateBook) => {
   try {
     await connectToMongoDB();
+
+    const { userId } = await auth();
+    if (!userId) return { success: false, message: "Unauthorized" };
 
     const slug = generateSlug(book.title);
 
@@ -122,9 +127,18 @@ export const saveBookSegments = async (
 
 export const getListOfBooks = async () => {
 
+  const { userId } = await auth();
+
+  if (!userId) {
+    return {
+      success: false,
+      message: "Unauthorized",
+    }
+  };
+
   try {
     await connectToMongoDB();
-    const books = await Book.find().sort({ createdAt: -1 }).lean();
+    const books = await Book.find({ clerkId: userId }).sort({ createdAt: -1 }).lean();
 
     return {
       success: true,
@@ -197,3 +211,24 @@ export const getBookBySlug = async (slug: string) => {
     return { success: false, data: null };
   }
 };
+
+export const deleteBook = async (bookId: string) => {
+  try {
+    await connectToMongoDB();
+
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      throw new Error("Invalid bookId");
+    }
+
+    await Book.findByIdAndDelete(bookId);
+    revalidatePath("/");
+    return { success: true, message: "Book deleted successfully" };
+
+  } catch (error) {
+    console.error("Failed to delete book", error);
+    return {
+      success: false,
+      message: "Failed to delete book",
+    }
+  }
+}

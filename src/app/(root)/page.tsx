@@ -1,7 +1,7 @@
 import LibraryHero from "@/components/LibraryHero";
 import { sampleBooks } from "@/lib/constants";
 import BookCard from "@/components/BookCard/BookCard";
-import { getListOfBooks } from "@/lib/actions/createBook";
+import { getListOfBooks } from "@/lib/actions/books.actions";
 
 const Page = async () => {
 
@@ -19,6 +19,7 @@ const Page = async () => {
             title={book.title}
             author={book.author}
             slug={book.slug}
+            bookId={book._id}
             coverURL={book.coverURL}
           />
         ))}
