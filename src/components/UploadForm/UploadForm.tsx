@@ -23,7 +23,7 @@ import { bookUploadSchema, type BookUploadValues } from "./upload-form.schema";
 import { VoiceField } from "./VoiceField";
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
-import { isBookExists, createBook, saveBookSegments } from "@/lib/actions/createBook";
+import { isBookExists, createBook, saveBookSegments } from "@/lib/actions/books.actions";
 import { useRouter } from "next/navigation";
 export type { BookUploadValues };
 import { parsePDFFile } from "@/lib/utils";
@@ -171,7 +171,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
     } catch (error) {
       await deleteUploadedBlobs();
       console.error("Failed to upload book", error);
-      toast.error("Failed to upload book", { position: "top-right" });
+      toast.error(`Failed to upload book ${error} `, { position: "top-right" });
     } finally {
       setIsSubmitting(false);
     }

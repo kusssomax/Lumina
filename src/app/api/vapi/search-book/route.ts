@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchBookSegments } from "@/lib/actions/createBook";
+import { searchBookSegments } from "@/lib/actions/books.actions";
 
 // Vapi sends the shared secret in the "x-vapi-secret" header
 export async function POST(request: Request): Promise<NextResponse> {
