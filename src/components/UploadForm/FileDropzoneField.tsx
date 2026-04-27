@@ -76,7 +76,7 @@ export function FileDropzoneField({
             <DropzoneLabel
               className={cn(
                 dropzoneClassName,
-                field.value && "border-border bg-secondary/30"
+                field.value && "border-border bg-secondary/30 max-w-full"
               )}
             >
               {field.value ? (

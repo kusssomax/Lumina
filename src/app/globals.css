@@ -171,3 +171,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+.cl-pricingTable {
+  --clerk-color-primary: var(--primary);
+  font-family: var(--font-sans);
+}
