@@ -7,6 +7,7 @@ import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { getPlanLimits, getUserPlan } from "@/lib/planUtils";
 
 export const isBookExists = async (title: string) => {
   try {
@@ -47,6 +48,17 @@ export const createBook = async (book: CreateBook) => {
         success: true,
         data: serializeData(existingBook),
         alreadyExists: true,
+      };
+    }
+
+    const limits = await getPlanLimits();
+    const bookCount = await Book.countDocuments({ clerkId: userId });
+    if (bookCount >= limits.books) {
+      const plan = await getUserPlan();
+      return {
+        success: false,
+        message: `Your ${plan} plan allows up to ${limits.books} book${limits.books === 1 ? "" : "s"}. Upgrade to add more.`,
+        limitReached: true,
       };
     }
 

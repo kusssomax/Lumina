@@ -171,7 +171,7 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
     } catch (error) {
       await deleteUploadedBlobs();
       console.error("Failed to upload book", error);
-      toast.error("Failed to upload book", { position: "top-right" });
+      toast.error(`Failed to upload book ${error} `, { position: "top-right" });
     } finally {
       setIsSubmitting(false);
     }
