@@ -1,0 +1,56 @@
+name: Normalize commit authors
+
+on:
+  push:
+    branches:
+      - '**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: normalize-authors-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rewrite:
+    if: github.actor != 'marvin1gray1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Install git-filter-repo
+        run: pip install git-filter-repo
+
+      - name: Configure git identity
+        run: |
+          git config user.name "marvin1gray1"
+          git config user.email "marvin1gray1@gmail.com"
+
+      - name: Check if rewrite is needed
+        id: check
+        run: |
+          COUNT=$(git log ${{ github.event.before }}..${{ github.event.after }} \
+            --format='%ae' | grep -vc '^marvin1gray1@gmail\.com$' || true)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Rewrite commit authors
+        if: steps.check.outputs.count != '0'
+        run: |
+          git filter-repo --force \
+            --refs ${{ github.event.before }}..HEAD \
+            --commit-callback '
+              commit.author_name = b"marvin1gray1"
+              commit.author_email = b"marvin1gray1@gmail.com"
+              commit.committer_name = b"marvin1gray1"
+              commit.committer_email = b"marvin1gray1@gmail.com"
+            '
+
+      - name: Force push rewritten history
+        if: steps.check.outputs.count != '0'
+        run: git push --force origin HEAD:${{ github.ref_name }}
