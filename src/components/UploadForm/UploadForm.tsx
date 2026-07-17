@@ -3,14 +3,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageUp, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
   FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -183,22 +181,39 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className={cn("mx-auto w-full max-w-lg space-y-8", className)}
+          className={cn("mx-auto w-full space-y-6", className)}
+          style={{ maxWidth: "680px", padding: "52px 24px 90px" }}
         >
+          {/* Page header */}
+          <div className="text-center mb-12">
+            <h1
+              className="font-serif font-normal text-foreground mb-[10px]"
+              style={{ fontSize: "52px" }}
+            >
+              Add a New Book
+            </h1>
+            <p style={{ fontSize: "15px", color: "var(--text-2)" }}>
+              Upload a PDF and choose your AI voice narrator.
+            </p>
+          </div>
+
           <FileDropzoneField
             control={form.control}
             name="pdfFile"
+            label="Book PDF"
             accept="application/pdf,.pdf"
             srDescription={`Upload a PDF file, maximum ${MAX_PDF_MB} megabytes`}
             icon={Upload}
             removeAriaLabel="Remove PDF"
             emptyTitle="Click to upload PDF"
-            emptyDescription={`PDF file (max ${MAX_PDF_MB}MB)`}
+            emptyDescription={`PDF file · max ${MAX_PDF_MB} MB`}
           />
 
           <FileDropzoneField
             control={form.control}
             name="coverImage"
+            label="Cover Image"
+            optional
             accept="image/*"
             srDescription="Optional cover image, or leave empty to auto-generate from the PDF"
             icon={ImageUp}
@@ -207,49 +222,90 @@ const UploadForm = ({ onSubmit: onSubmitProp, className }: UploadFormProps) => {
             emptyDescription="Leave empty to auto-generate from PDF"
           />
 
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormDescription className="sr-only">
-                  Book title, required
-                </FormDescription>
-                <FormControl>
-                  <Input placeholder="ex: Rich Dad Poor Dad" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Title + Author row */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="mb-[9px]">
+                    <span
+                      className="uppercase font-medium"
+                      style={{ fontSize: "11px", color: "var(--text-3)", letterSpacing: "0.08em" }}
+                    >
+                      Title <span style={{ color: "var(--primary)" }}>*</span>
+                    </span>
+                  </div>
+                  <FormDescription className="sr-only">Book title, required</FormDescription>
+                  <FormControl>
+                    <Input
+                      placeholder="Rich Dad Poor Dad"
+                      {...field}
+                      style={{
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "10px",
+                        fontSize: "14px",
+                        color: "var(--text-1)",
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="author"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Author Name</FormLabel>
-                <FormDescription className="sr-only">
-                  Author name, required
-                </FormDescription>
-                <FormControl>
-                  <Input placeholder="ex: Robert Kiyosaki" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="author"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="mb-[9px]">
+                    <span
+                      className="uppercase font-medium"
+                      style={{ fontSize: "11px", color: "var(--text-3)", letterSpacing: "0.08em" }}
+                    >
+                      Author <span style={{ color: "var(--primary)" }}>*</span>
+                    </span>
+                  </div>
+                  <FormDescription className="sr-only">Author name, required</FormDescription>
+                  <FormControl>
+                    <Input
+                      placeholder="Robert Kiyosaki"
+                      {...field}
+                      style={{
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "10px",
+                        fontSize: "14px",
+                        color: "var(--text-1)",
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <VoiceField control={form.control} />
 
-          <Button
+          <button
             type="submit"
             disabled={form.formState.isSubmitting}
-            className="h-12 w-full font-serif text-base cursor-pointer"
+            className="w-full font-medium transition-opacity cursor-pointer"
+            style={{
+              background: form.formState.isSubmitting ? "var(--surface-3)" : "var(--primary)",
+              color: form.formState.isSubmitting ? "var(--text-3)" : "var(--primary-foreground)",
+              fontSize: "14px",
+              padding: "14px",
+              borderRadius: "12px",
+              border: form.formState.isSubmitting ? "1px solid var(--border)" : "none",
+            }}
           >
             Begin Synthesis
-          </Button>
+          </button>
         </form>
       </Form>
     </>

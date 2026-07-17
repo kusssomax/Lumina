@@ -1,34 +1,25 @@
 import type { Metadata } from "next";
-// import { Geist, Geist_Mono } from "next/font/google";
-import { IBM_Plex_Serif, Mona_Sans } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import ClerkNavAuth from "@/components/ClerkNavAuth";
 import { Toaster } from "sonner";
 
-const ibmPlexSerif = IBM_Plex_Serif({
-  variable: "--font-ibm-plex-serif",
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
-const MonaSans = Mona_Sans({
-  variable: "--font-mona-sans",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
   display: "swap",
-})
-
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
+});
 
 export const metadata: Metadata = {
   title: "Lumina",
@@ -43,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${ibmPlexSerif.variable} ${MonaSans.variable} relative font-sans h-full antialiased`}
+      className={`${cormorant.variable} ${dmSans.variable} dark relative font-sans h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <Toaster />
@@ -51,7 +42,7 @@ export default function RootLayout({
           <NavBar>
             <ClerkNavAuth />
           </NavBar>
-          <main className="pt-[74px]">
+          <main className="pt-[64px]">
             {children}
           </main>
         </ClerkProvider>
