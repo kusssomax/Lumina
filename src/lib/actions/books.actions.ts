@@ -5,6 +5,9 @@ import { connectToMongoDB } from "@/database/mongoose";
 import { escapeRegex, generateSlug, serializeData } from "../utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import { getPlanLimits, getUserPlan } from "@/lib/planUtils";
 
 export const isBookExists = async (title: string) => {
   try {
@@ -34,6 +37,9 @@ export const createBook = async (book: CreateBook) => {
   try {
     await connectToMongoDB();
 
+    const { userId } = await auth();
+    if (!userId) return { success: false, message: "Unauthorized" };
+
     const slug = generateSlug(book.title);
 
     const existingBook = await Book.findOne({ slug }).lean();
@@ -42,6 +48,17 @@ export const createBook = async (book: CreateBook) => {
         success: true,
         data: serializeData(existingBook),
         alreadyExists: true,
+      };
+    }
+
+    const limits = await getPlanLimits();
+    const bookCount = await Book.countDocuments({ clerkId: userId });
+    if (bookCount >= limits.books) {
+      const plan = await getUserPlan();
+      return {
+        success: false,
+        message: `Your ${plan} plan allows up to ${limits.books} book${limits.books === 1 ? "" : "s"}. Upgrade to add more.`,
+        limitReached: true,
       };
     }
 
@@ -122,9 +139,18 @@ export const saveBookSegments = async (
 
 export const getListOfBooks = async () => {
 
+  const { userId } = await auth();
+
+  if (!userId) {
+    return {
+      success: false,
+      message: "Unauthorized",
+    }
+  };
+
   try {
     await connectToMongoDB();
-    const books = await Book.find().sort({ createdAt: -1 }).lean();
+    const books = await Book.find({ clerkId: userId }).sort({ createdAt: -1 }).lean();
 
     return {
       success: true,
@@ -197,3 +223,24 @@ export const getBookBySlug = async (slug: string) => {
     return { success: false, data: null };
   }
 };
+
+export const deleteBook = async (bookId: string) => {
+  try {
+    await connectToMongoDB();
+
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      throw new Error("Invalid bookId");
+    }
+
+    await Book.findByIdAndDelete(bookId);
+    revalidatePath("/");
+    return { success: true, message: "Book deleted successfully" };
+
+  } catch (error) {
+    console.error("Failed to delete book", error);
+    return {
+      success: false,
+      message: "Failed to delete book",
+    }
+  }
+}
